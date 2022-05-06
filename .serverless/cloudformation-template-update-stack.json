@@ -1,0 +1,615 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The AWS CloudFormation template for this Serverless application",
+  "Resources": {
+    "ServerlessDeploymentBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ServerlessDeploymentBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "ServerlessDeploymentBucket"
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:*",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "ServerlessDeploymentBucket"
+                      },
+                      "/*"
+                    ]
+                  ]
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "ServerlessDeploymentBucket"
+                      }
+                    ]
+                  ]
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "StarJobLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/poc-pdf-textract-dev-StarJob"
+      }
+    },
+    "GetResultLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/poc-pdf-textract-dev-GetResult"
+      }
+    },
+    "DatasortLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/poc-pdf-textract-dev-Datasort"
+      }
+    },
+    "IamRoleLambdaExecution": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": {
+              "Fn::Join": [
+                "-",
+                [
+                  "poc-pdf-textract",
+                  "dev",
+                  "lambda"
+                ]
+              ]
+            },
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:CreateLogGroup"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/poc-pdf-textract-dev*:*"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/poc-pdf-textract-dev*:*:*"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:*"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "textract:*"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "sqs:*"
+                  ],
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ],
+        "Path": "/",
+        "RoleName": {
+          "Fn::Join": [
+            "-",
+            [
+              "poc-pdf-textract",
+              "dev",
+              {
+                "Ref": "AWS::Region"
+              },
+              "lambdaRole"
+            ]
+          ]
+        }
+      }
+    },
+    "StarJobLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ServerlessDeploymentBucket"
+          },
+          "S3Key": "serverless/poc-pdf-textract/dev/1651846880320-2022-05-06T14:21:20.320Z/poc-pdf-textract.zip"
+        },
+        "Handler": "startJob.handler",
+        "Runtime": "python3.8",
+        "FunctionName": "poc-pdf-textract-dev-StarJob",
+        "MemorySize": 1024,
+        "Timeout": 6,
+        "Role": {
+          "Fn::GetAtt": [
+            "IamRoleLambdaExecution",
+            "Arn"
+          ]
+        }
+      },
+      "DependsOn": [
+        "StarJobLogGroup"
+      ]
+    },
+    "GetResultLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ServerlessDeploymentBucket"
+          },
+          "S3Key": "serverless/poc-pdf-textract/dev/1651846880320-2022-05-06T14:21:20.320Z/poc-pdf-textract.zip"
+        },
+        "Handler": "getResult.handler",
+        "Runtime": "python3.8",
+        "FunctionName": "poc-pdf-textract-dev-GetResult",
+        "MemorySize": 1024,
+        "Timeout": 6,
+        "Role": {
+          "Fn::GetAtt": [
+            "IamRoleLambdaExecution",
+            "Arn"
+          ]
+        }
+      },
+      "DependsOn": [
+        "GetResultLogGroup"
+      ]
+    },
+    "DatasortLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ServerlessDeploymentBucket"
+          },
+          "S3Key": "serverless/poc-pdf-textract/dev/1651846880320-2022-05-06T14:21:20.320Z/poc-pdf-textract.zip"
+        },
+        "Handler": "datasort.handler",
+        "Runtime": "python3.8",
+        "FunctionName": "poc-pdf-textract-dev-Datasort",
+        "MemorySize": 1024,
+        "Timeout": 6,
+        "Role": {
+          "Fn::GetAtt": [
+            "IamRoleLambdaExecution",
+            "Arn"
+          ]
+        }
+      },
+      "DependsOn": [
+        "DatasortLogGroup"
+      ]
+    },
+    "StarJobLambdaVersionrh9TBwTavjgAyuhboeW0zUdHyErV5mE7M7usLkxkLI": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "StarJobLambdaFunction"
+        },
+        "CodeSha256": "VK7yfyoiR5A/L7v0JmcvIATBjNGR9Cx92A/8bw763PM="
+      }
+    },
+    "GetResultLambdaVersionmVvad4Y6PyqhmxUwUCreLsZ6y0MIk6ElgLdC2LxRCJs": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "GetResultLambdaFunction"
+        },
+        "CodeSha256": "VK7yfyoiR5A/L7v0JmcvIATBjNGR9Cx92A/8bw763PM="
+      }
+    },
+    "DatasortLambdaVersionqZeXqYLdYAU00bj3pJdm7EL8fya2DlO5W7gac3bWVZM": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "DatasortLambdaFunction"
+        },
+        "CodeSha256": "VK7yfyoiR5A/L7v0JmcvIATBjNGR9Cx92A/8bw763PM="
+      }
+    },
+    "PocDashpdfDashtextractDashdevRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": {
+                  "Fn::Sub": "states.${AWS::Region}.amazonaws.com"
+                }
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "dev-poc-pdf-textract-statemachine",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "lambda:InvokeFunction"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "StarJobLambdaFunction",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::Sub": [
+                        "${functionArn}:*",
+                        {
+                          "functionArn": {
+                            "Fn::GetAtt": [
+                              "StarJobLambdaFunction",
+                              "Arn"
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "GetResultLambdaFunction",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::Sub": [
+                        "${functionArn}:*",
+                        {
+                          "functionArn": {
+                            "Fn::GetAtt": [
+                              "GetResultLambdaFunction",
+                              "Arn"
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "DatasortLambdaFunction",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::Sub": [
+                        "${functionArn}:*",
+                        {
+                          "functionArn": {
+                            "Fn::GetAtt": [
+                              "DatasortLambdaFunction",
+                              "Arn"
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "PocDashpdfDashtextractDashdev": {
+      "Type": "AWS::StepFunctions::StateMachine",
+      "Properties": {
+        "DefinitionString": {
+          "Fn::Sub": [
+            "{\n  \"Comment\": \"Resolve process async of TextTract\",\n  \"StartAt\": \"Start Job\",\n  \"States\": {\n    \"Start Job\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"${4fd372767d3acf31776e47b92400b2ca}\",\n      \"Next\": \"Wait\"\n    },\n    \"Wait\": {\n      \"Type\": \"Wait\",\n      \"Seconds\": 5,\n      \"Next\": \"Get Result\"\n    },\n    \"Get Result\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"${6b5c6c52fb10db7594b974581b19c16a}\",\n      \"Next\": \"Is Job Done\"\n    },\n    \"Is Job Done\": {\n      \"Type\": \"Choice\",\n      \"Choices\": [\n        {\n          \"Variable\": \"$.job_status\",\n          \"StringEquals\": \"IN_PROGRESS\",\n          \"Next\": \"Wait\"\n        },\n        {\n          \"Variable\": \"$.job_status\",\n          \"StringEquals\": \"SUCCEEDED\",\n          \"Next\": \"Data Sort\"\n        },\n        {\n          \"Variable\": \"$.job_status\",\n          \"StringEquals\": \"FAILD\",\n          \"Next\": \"Final State\"\n        }\n      ],\n      \"Default\": \"Final State\"\n    },\n    \"Data Sort\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"${64662affb910d275e33404b96747c531}\",\n      \"Next\": \"Final State\"\n    },\n    \"Final State\": {\n      \"Type\": \"Pass\",\n      \"End\": true\n    }\n  }\n}",
+            {
+              "4fd372767d3acf31776e47b92400b2ca": {
+                "Fn::GetAtt": [
+                  "StarJobLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "6b5c6c52fb10db7594b974581b19c16a": {
+                "Fn::GetAtt": [
+                  "GetResultLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "64662affb910d275e33404b96747c531": {
+                "Fn::GetAtt": [
+                  "DatasortLambdaFunction",
+                  "Arn"
+                ]
+              }
+            }
+          ]
+        },
+        "RoleArn": {
+          "Fn::GetAtt": [
+            "PocDashpdfDashtextractDashdevRole",
+            "Arn"
+          ]
+        },
+        "StateMachineName": "poc-pdf-textract-dev"
+      },
+      "DependsOn": [
+        "PocDashpdfDashtextractDashdevRole"
+      ]
+    },
+    "StepMachineTextTractEventsRuleCloudWatchEvent1": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "EventBusName": "default",
+        "EventPattern": {
+          "source": [
+            "aws.s3"
+          ],
+          "detail-type": [
+            "Object Created"
+          ],
+          "detail": {
+            "bucket": {
+              "name": [
+                "poc-pdf-textract-pdfdownload-dev"
+              ]
+            },
+            "object": {
+              "key": [
+                {
+                  "prefix": "uploadpdf/"
+                }
+              ]
+            }
+          }
+        },
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Ref": "PocDashpdfDashtextractDashdev"
+            },
+            "Id": "stepMachineTextTractCloudWatchEvent",
+            "RoleArn": {
+              "Fn::GetAtt": [
+                "StepMachineTextTractEventToStepFunctionsRole",
+                "Arn"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "StepMachineTextTractEventToStepFunctionsRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "events.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "dev-us-west-2-poc-pdf-textract-stepMachineTextTract-event",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "states:StartExecution"
+                  ],
+                  "Resource": {
+                    "Ref": "PocDashpdfDashtextractDashdev"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "ExtractionBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": "poc-pdf-textract-pdfdownload-dev",
+        "NotificationConfiguration": {
+          "EventBridgeConfiguration": {
+            "EventBridgeEnabled": true
+          }
+        }
+      }
+    },
+    "CloudTrailBucketPolicy": {
+      "DependsOn": [
+        "ExtractionBucket"
+      ],
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": "poc-pdf-textract-pdfdownload-dev",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "AWSCloudTrailAclCheck",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudtrail.amazonaws.com"
+              },
+              "Action": "s3:GetBucketAcl",
+              "Resource": "arn:aws:s3:::poc-pdf-textract-pdfdownload-dev"
+            },
+            {
+              "Sid": "AWSCloudTrailWrite",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudtrail.amazonaws.com"
+              },
+              "Action": "s3:PutObject",
+              "Resource": "arn:aws:s3:::poc-pdf-textract-pdfdownload-dev/AWSLogs/*",
+              "Condition": {
+                "StringEquals": {
+                  "s3:x-amz-acl": "bucket-owner-full-control"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "CloudTrail": {
+      "DependsOn": [
+        "ExtractionBucket",
+        "CloudTrailBucketPolicy"
+      ],
+      "Type": "AWS::CloudTrail::Trail",
+      "Properties": {
+        "S3BucketName": "poc-pdf-textract-pdfdownload-dev",
+        "TrailName": "poc-pdf-textract-cloudTrail-bucket",
+        "IsLogging": true
+      }
+    }
+  },
+  "Outputs": {
+    "ServerlessDeploymentBucketName": {
+      "Value": {
+        "Ref": "ServerlessDeploymentBucket"
+      },
+      "Export": {
+        "Name": "sls-poc-pdf-textract-dev-ServerlessDeploymentBucketName"
+      }
+    },
+    "StarJobLambdaFunctionQualifiedArn": {
+      "Description": "Current Lambda function version",
+      "Value": {
+        "Ref": "StarJobLambdaVersionrh9TBwTavjgAyuhboeW0zUdHyErV5mE7M7usLkxkLI"
+      },
+      "Export": {
+        "Name": "sls-poc-pdf-textract-dev-StarJobLambdaFunctionQualifiedArn"
+      }
+    },
+    "GetResultLambdaFunctionQualifiedArn": {
+      "Description": "Current Lambda function version",
+      "Value": {
+        "Ref": "GetResultLambdaVersionmVvad4Y6PyqhmxUwUCreLsZ6y0MIk6ElgLdC2LxRCJs"
+      },
+      "Export": {
+        "Name": "sls-poc-pdf-textract-dev-GetResultLambdaFunctionQualifiedArn"
+      }
+    },
+    "DatasortLambdaFunctionQualifiedArn": {
+      "Description": "Current Lambda function version",
+      "Value": {
+        "Ref": "DatasortLambdaVersionqZeXqYLdYAU00bj3pJdm7EL8fya2DlO5W7gac3bWVZM"
+      },
+      "Export": {
+        "Name": "sls-poc-pdf-textract-dev-DatasortLambdaFunctionQualifiedArn"
+      }
+    },
+    "PocDashpdfDashtextractDashdevArn": {
+      "Description": "Current StateMachine Arn",
+      "Value": {
+        "Ref": "PocDashpdfDashtextractDashdev"
+      },
+      "Export": {
+        "Name": "sls-poc-pdf-textract-dev-PocDashpdfDashtextractDashdevArn"
+      }
+    }
+  }
+}

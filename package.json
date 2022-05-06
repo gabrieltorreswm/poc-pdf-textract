@@ -1,0 +1,26 @@
+{
+  "name": "poc-datasort-textract",
+  "version": "1.0.0",
+  "description": "Building an OCR solution for document analysis with AWS Textract and AWS StepFunction",
+  "author": {
+    "name": "Gabriel Torres",
+    "email": "gabrieltorreswm@gmail.com",
+    "url": "https://twitter.com/gabrieltorreswm"
+  },
+  "devDependencies": {
+    "serverless-pseudo-parameters": "^2.6.1",
+    "serverless-step-functions": "^3.5.1"
+  },
+  "keywords": [
+    "AWS Textract",
+    "AWS StepFunction",
+    "AWS EventBridge",
+    "Serverless Framework",
+    "Soluction Architecture"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/whatever/testing.git"
+  }
+}

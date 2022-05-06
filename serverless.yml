@@ -1,0 +1,150 @@
+service: poc-pdf-textract
+
+frameworkVersion: "2 || 3"
+
+plugins:
+  - serverless-step-functions
+  - serverless-pseudo-parameters
+provider:
+  name: aws
+  runtime: python3.8
+  profile: default
+  stage: ${opt:stage, 'dev'}
+  region: us-west-2
+  lambdaHashingVersion: 20201221
+  ecr:
+    # In this section you can define images that will be built locally and uploaded to ECR
+    images:
+      scanOnPush: true
+      appimage:
+        path: ./ 
+  iamRoleStatements:
+    - Effect: Allow
+      Action: s3:*
+      Resource: "*" 
+    - Effect: Allow
+      Action: textract:*
+      Resource: "*"
+    - Effect: Allow
+      Action: sqs:*
+      Resource: "*"        
+
+custom:
+  PDF_BUCKET : ${self:service}-pdfdownload-${opt:stage,'dev'}
+  STATE_MACHINE_TEXT_TRACT: ${self:service}-${opt:stage,'dev'}
+  ROLE_STATE_MACHINE : ${self:service}-role-stepFunction-${opt:stage,'dev'}
+  EVENT_BUST_NAME: ${self:service}-eventBus-${opt:stage,'dev'}
+    
+
+functions:
+  StarJob:
+    handler: startJob.handler
+  GetResult:
+    handler: getResult.handler  
+  Datasort:
+    handler: datasort.handler  
+
+stepFunctions:
+  stateMachines:
+    stepMachineTextTract:
+      events: 
+        - eventBridge:
+            eventBusName: default
+            event:
+              source:
+                - aws.s3
+              detail-type:
+                - "Object Created"
+              detail:
+                bucket:
+                  name: 
+                    - "${self:custom.PDF_BUCKET}"
+                object:
+                  key:
+                    - prefix: 'uploadpdf/'  
+
+      name: "${self:custom.STATE_MACHINE_TEXT_TRACT}"
+      definition: 
+        Comment: "Resolve process async of TextTract"
+        StartAt: Start Job
+        States: 
+          Start Job:
+            Type: Task
+            Resource:
+              Fn::GetAtt: [StarJob, Arn]
+            Next: Wait
+          Wait:
+            Type: Wait
+            Seconds: 5
+            Next: Get Result  
+          Get Result:
+            Type: Task
+            Resource:
+              Fn::GetAtt: [GetResult, Arn]
+            Next: Is Job Done
+          Is Job Done:
+            Type: Choice
+            Choices:
+              - Variable: "$.job_status"
+                StringEquals: "IN_PROGRESS"
+                Next: Wait
+              - Variable: "$.job_status"
+                StringEquals: "SUCCEEDED"
+                Next: Data Sort
+              - Variable: "$.job_status"
+                StringEquals: "FAILD"  
+                Next: Final State
+            Default: Final State
+          Data Sort:
+            Type: Task
+            Resource:
+              Fn::GetAtt: [Datasort, Arn]
+            Next: Final State       
+          Final State:
+            Type: Pass 
+            End: true 
+
+resources:
+  Resources:
+    ExtractionBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: "${self:custom.PDF_BUCKET}"
+        NotificationConfiguration:
+          EventBridgeConfiguration:
+            EventBridgeEnabled: true 
+    CloudTrailBucketPolicy:
+      DependsOn:
+        - ExtractionBucket  
+      Type: "AWS::S3::BucketPolicy"
+      Properties:
+        Bucket: "${self:custom.PDF_BUCKET}"
+        PolicyDocument:
+            Version: "2012-10-17"
+            Statement: 
+              - 
+                Sid: "AWSCloudTrailAclCheck"
+                Effect: "Allow"
+                Principal: 
+                  Service: "cloudtrail.amazonaws.com"
+                Action: "s3:GetBucketAcl"
+                Resource: "arn:aws:s3:::${self:custom.PDF_BUCKET}"
+              - 
+                Sid: "AWSCloudTrailWrite"
+                Effect: "Allow"
+                Principal: 
+                  Service: "cloudtrail.amazonaws.com"
+                Action: "s3:PutObject"
+                Resource: "arn:aws:s3:::${self:custom.PDF_BUCKET}/AWSLogs/*"
+                Condition: 
+                  StringEquals:
+                    s3:x-amz-acl: "bucket-owner-full-control"
+    CloudTrail:
+      DependsOn:
+        - ExtractionBucket
+        - CloudTrailBucketPolicy
+      Type: "AWS::CloudTrail::Trail"
+      Properties:
+        S3BucketName: "${self:custom.PDF_BUCKET}"
+        TrailName: ${self:service}-cloudTrail-bucket
+        IsLogging: true

@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "../cs-files-manager-refactoring"
+		},
+		{
+			"path": "."
+		},
+		{
+			"path": "../cs-tia-batch"
+		},
+		{
+			"path": "../poc-datasor-stepFunction"
+		},
+		{
+			"path": "../aws-textract-cloudformation"
+		}
+	],
+	"settings": {}
+}
