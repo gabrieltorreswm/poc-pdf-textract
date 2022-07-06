@@ -1,6 +1,7 @@
-# Building an OCR solution for document analysis with AWS Textract and AWS StepFunctions.
+# Orchestrating Credit Check on AWS StepFunction, CallBack Pattern, SQS, and TaskToken.
 
-In this post, I’ll talk about AWS Textract and AWS Step Functions and how they could combine to build remarkable solutions like a serverless OCR (Optical character recognition) processor, useful for Tables extraction, like Bank Extracts, Invoices or SpreadSheets for instance. But you can add to this as much “sugar” as you want to process any other type of files with different structures. I invite you to check my poc-pdf-textract repository on GitHub to know more and share your solutions and questions at @gabrieltorreswm on Twitter.
+We will implement a real case, which consists of performing a credit check as part of an approval workflow. As we will see below, the workflow is sort; we have an external " Wallet " system. Which is responsible for telling us if the customer has enough balance or not; with that information, we will know in the step function what should be the next step to follow, If we approve or deny the credit. 
+It would not be possible if we did not use taskToken to pause the step machine until the external "wallet." system has finished your work and brought us a result.
 
 See more here: https://gabrieltorreswm.medium.com/building-an-ocr-solution-for-document-analysis-with-aws-textract-and-aws-stepfunctions-81b4932c9443
 
